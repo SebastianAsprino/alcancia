@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { aEntero, formatoPesos } from "$lib/formato";
 	import { useEstadoGlobal } from "$lib/useEstadoGlobal.svelte";
 
 	const estadoGlobal = useEstadoGlobal();
 
-	let { onclose } = $props();
+	let { onclose }: { onclose: () => void } = $props();
 
 	let metaInput = $state(estadoGlobal.meta.toString());
 	let error = $state("");
@@ -17,8 +18,8 @@
 	];
 
 	function guardarMeta() {
-		const meta = parseInt(metaInput);
-		if (!meta || meta <= 0) {
+		const meta = aEntero(metaInput);
+		if (meta <= 0) {
 			error = "Ingresa un monto válido mayor a 0";
 			return;
 		}
@@ -29,14 +30,6 @@
 	function seleccionarSugerencia(valor: number) {
 		metaInput = valor.toString();
 	}
-
-	const formatoPesos = (valor: number) => {
-		return new Intl.NumberFormat("es-CO", {
-			style: "currency",
-			currency: "COP",
-			minimumFractionDigits: 0,
-		}).format(valor);
-	};
 </script>
 
 <div class="modal modal-open">
@@ -68,7 +61,7 @@
 		<div class="mb-6">
 			<p class="text-sm text-base-content/70 mb-2">Metas sugeridas:</p>
 			<div class="flex flex-wrap gap-2">
-				{#each metasSugeridas as sugerencia}
+				{#each metasSugeridas as sugerencia (sugerencia.valor)}
 					<button
 						onclick={() => seleccionarSugerencia(sugerencia.valor)}
 						class="btn btn-sm btn-outline btn-primary gap-1"

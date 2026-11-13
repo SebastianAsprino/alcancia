@@ -1,42 +1,82 @@
-# sv
+# Alcancía digital 🐷
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Aplicación web para llevar la cuenta de una alcancía en pesos colombianos: registrar lo que se ahorra
+(con botones por denominación o un monto manual), registrar retiros, fijar una meta y ver el progreso.
+Todo vive en el navegador: no hay cuentas ni servidor de datos.
 
-## Creating a project
+## Características
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Bienvenida**: pide un nombre y abre el panel personal.
+- **Ahorrar**: contadores por billete o moneda (de $100 a $100.000) más un monto manual opcional; el
+  total se calcula en vivo y se registra en el historial.
+- **Retirar**: retiro de un monto con motivo opcional (pide confirmación si supera el 50 % del saldo)
+  o retiro total.
+- **Meta**: monto objetivo con sugerencias rápidas; anillo de progreso en SVG y mensaje según si falta,
+  se alcanzó o se superó.
+- **Historial**: últimos 5 movimientos y número total de transacciones.
+- **Persistencia** en `localStorage`: el estado se guarda en cada cambio y se restaura al volver.
+  "Cerrar sesión" borra todo y vuelve a la bienvenida.
+- PWA básica: favicons y `site.webmanifest`.
 
-```sh
-# create a new project
-npx sv create my-app
+## Stack
+
+- [SvelteKit 2](https://svelte.dev/docs/kit) + [Svelte 5](https://svelte.dev) (runes: `$state`, `$derived`, `$effect`)
+- TypeScript
+- [Tailwind CSS 4](https://tailwindcss.com) + [daisyUI 5](https://daisyui.com) (tema `caramellatte`)
+- [`@sveltejs/adapter-cloudflare`](https://svelte.dev/docs/kit/adapter-cloudflare) para Cloudflare Pages
+- [Bun](https://bun.sh) como gestor de paquetes
+
+## Arquitectura
+
+```text
+src/
+├── routes/
+│   ├── +layout.svelte          # crea el estado global, lo publica por contexto y lo sincroniza con localStorage
+│   ├── +page.svelte            # muestra Bienvenida o Dashboard según `pasoActual`
+│   └── layout.css              # Tailwind + daisyUI
+└── lib/
+    ├── estadoGlobal.svelte.ts  # tipos, estado inicial y lectura/escritura en localStorage
+    ├── useEstadoGlobal.svelte.ts # acceso al estado vía contexto de Svelte
+    ├── formato.ts              # formato de pesos (COP) y conversión de inputs a enteros
+    └── components/
+        ├── Bienvenida.svelte
+        ├── Dashboard.svelte    # tarjetas: progreso, configuración, ahorrar, retirar, historial
+        ├── Ahorrar.svelte
+        ├── Retirar.svelte
+        └── MetaConfig.svelte   # modal de la meta
+static/                         # favicons, manifest y robots.txt
 ```
 
-To recreate this project with the same configuration:
+El estado es un único objeto reactivo (`$state`) que se crea en el layout y se comparte con
+`setContext`/`getContext`; los componentes lo modifican directamente y un `$effect` lo guarda en
+`localStorage` (clave `alcanciaData`). Si el dato guardado está corrupto o el almacenamiento no está
+disponible, la app arranca vacía y sigue funcionando en memoria.
+
+## Desarrollo
+
+Requiere [Bun](https://bun.sh).
 
 ```sh
-# recreate this project
-bun x sv@0.12.5 create --template minimal --types ts --add tailwindcss="plugins:none" sveltekit-adapter="adapter:cloudflare+cfTarget:pages" --install bun alcancia
+bun install
+bun run dev        # servidor de desarrollo en http://localhost:5173
+bun run check      # svelte-check (tipos y diagnósticos de Svelte)
+bun run build      # build para Cloudflare en .svelte-kit/cloudflare
+bun run preview    # sirve el build con wrangler pages dev en http://localhost:4173
 ```
 
-## Developing
+## Despliegue
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+La app usa el adapter de Cloudflare y `wrangler.jsonc` apunta a `.svelte-kit/cloudflare`:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+bun run build
+bunx wrangler pages deploy
 ```
 
-## Building
+También se puede conectar el repositorio a Cloudflare Pages con el comando de build `bun run build` y
+el directorio de salida `.svelte-kit/cloudflare`.
 
-To create a production version of your app:
+## Integración continua
 
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+`.github/workflows/ci.yml` corre en cada push a `main` y en cada pull request: instala dependencias con
+el lockfile congelado, ejecuta `bun run check` y `bun run build`.

@@ -6,6 +6,7 @@
 		cargarDesdeStorage,
 		guardarEnStorage,
 	} from "$lib/estadoGlobal.svelte";
+	import { proveerEstadoGlobal } from "$lib/useEstadoGlobal.svelte";
 
 	let { children } = $props();
 
@@ -14,25 +15,20 @@
 
 	// Cargar datos guardados al iniciar (solo cliente)
 	$effect(() => {
-		if (typeof window !== "undefined") {
-			const guardado = cargarDesdeStorage();
-			if (guardado) {
-				Object.assign(estadoGlobal, guardado);
-			}
+		const guardado = cargarDesdeStorage();
+		if (guardado) {
+			Object.assign(estadoGlobal, guardado);
 		}
 	});
 
-	// Guardar automáticamente cuando cambie el estado
+	// Guardar automáticamente cuando cambie el estado: guardarEnStorage serializa todo el
+	// objeto, así que el efecto depende de cada campo (también de los items del historial)
 	$effect(() => {
-		// Dependencias explícitas para que Svelte trackee los cambios
-		const { nombre, ahorroTotal, meta, historial, pasoActual } = estadoGlobal;
 		guardarEnStorage(estadoGlobal);
 	});
 
 	// Hacer disponible el estado global para todos los componentes hijos
-	// usando contexto de Svelte
-	import { setContext } from "svelte";
-	setContext("estadoGlobal", estadoGlobal);
+	proveerEstadoGlobal(estadoGlobal);
 </script>
 
 <svelte:head

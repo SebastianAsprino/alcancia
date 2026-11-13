@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { onMount } from "svelte";
 	import Bienvenida from "$lib/components/Bienvenida.svelte";
 	import Dashboard from "$lib/components/Dashboard.svelte";
@@ -10,7 +10,7 @@
 
 	onMount(() => {
 		const guardado = cargarDesdeStorage();
-		if (guardado && guardado.nombre && guardado.nombre.trim() !== "") {
+		if (guardado?.nombre?.trim()) {
 			// Restaurar todo el estado guardado
 			Object.assign(estadoGlobal, guardado);
 		}

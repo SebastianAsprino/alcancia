@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { aEntero, formatoPesos } from "$lib/formato";
 	import { useEstadoGlobal } from "$lib/useEstadoGlobal.svelte";
 
 	const estadoGlobal = useEstadoGlobal();
@@ -7,19 +8,29 @@
 	let motivo = $state("");
 	let error = $state("");
 
-	const formatoPesos = (valor: number) => {
-		return new Intl.NumberFormat("es-CO", {
-			style: "currency",
-			currency: "COP",
-			minimumFractionDigits: 0,
-		}).format(valor);
-	};
+	// Por encima de esta fracción del saldo se pide confirmación
+	const UMBRAL_CONFIRMACION = 0.5;
+
+	const montoValido = $derived.by(() => {
+		const monto = aEntero(montoRetiro);
+		return monto > 0 && monto <= estadoGlobal.ahorroTotal;
+	});
+
+	function registrarRetiro(monto: number, detalle: string) {
+		estadoGlobal.ahorroTotal -= monto;
+		estadoGlobal.historial.push({
+			tipo: "retiro",
+			monto,
+			fecha: new Date().toISOString(),
+			detalle,
+		});
+	}
 
 	function confirmarRetiro() {
 		error = "";
-		const monto = parseInt(montoRetiro);
+		const monto = aEntero(montoRetiro);
 
-		if (!monto || monto <= 0) {
+		if (monto <= 0) {
 			error = "Ingresa un monto válido";
 			return;
 		}
@@ -30,7 +41,7 @@
 		}
 
 		// Confirmación si es más del 50%
-		if (monto > estadoGlobal.ahorroTotal * 0.5) {
+		if (monto > estadoGlobal.ahorroTotal * UMBRAL_CONFIRMACION) {
 			if (
 				!confirm("¿Estás seguro? Estás retirando más del 50% de tus ahorros.")
 			) {
@@ -38,14 +49,7 @@
 			}
 		}
 
-		// Ejecutar retiro
-		estadoGlobal.ahorroTotal -= monto;
-		estadoGlobal.historial.push({
-			tipo: "retiro",
-			monto: monto,
-			fecha: new Date().toISOString(),
-			detalle: motivo || "Sin motivo especificado",
-		});
+		registrarRetiro(monto, motivo.trim() || "Sin motivo especificado");
 
 		// Resetear
 		montoRetiro = "";
@@ -65,14 +69,7 @@
 				`¿Retirar todo tu dinero (${formatoPesos(estadoGlobal.ahorroTotal)})?`,
 			)
 		) {
-			const monto = estadoGlobal.ahorroTotal;
-			estadoGlobal.ahorroTotal = 0;
-			estadoGlobal.historial.push({
-				tipo: "retiro",
-				monto: monto,
-				fecha: new Date().toISOString(),
-				detalle: "Retiro total de la alcancía",
-			});
+			registrarRetiro(estadoGlobal.ahorroTotal, "Retiro total de la alcancía");
 
 			alert("Has vaciado tu alcancía");
 		}
@@ -134,9 +131,7 @@
 		<button
 			onclick={confirmarRetiro}
 			class="btn btn-error"
-			disabled={!montoRetiro ||
-				parseInt(montoRetiro) <= 0 ||
-				parseInt(montoRetiro) > estadoGlobal.ahorroTotal}
+			disabled={!montoValido}
 		>
 			🡆 Retirar Monto
 		</button>

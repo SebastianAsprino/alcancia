@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { crearEstadoInicial } from "$lib/estadoGlobal.svelte";
+	import { formatoPesos } from "$lib/formato";
 	import { useEstadoGlobal } from "$lib/useEstadoGlobal.svelte";
 	import Ahorrar from "./Ahorrar.svelte";
 	import Retirar from "./Retirar.svelte";
@@ -6,23 +8,18 @@
 
 	const estadoGlobal = useEstadoGlobal();
 
-	// Formato de pesos colombianos
-	const formatoPesos = (valor: number) => {
-		return new Intl.NumberFormat("es-CO", {
-			style: "currency",
-			currency: "COP",
-			minimumFractionDigits: 0,
-		}).format(valor);
-	};
+	// Radio del anillo de progreso (viewBox 100x100)
+	const RADIO = 45;
+	const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
 
 	// Calcular progreso para el gráfico
-	let progreso = $derived(() => {
+	const progreso = $derived.by(() => {
 		if (estadoGlobal.meta <= 0) return 0;
 		const porcentaje = (estadoGlobal.ahorroTotal / estadoGlobal.meta) * 100;
 		return Math.min(porcentaje, 100);
 	});
 
-	let mensajeMeta = $derived(() => {
+	const mensajeMeta = $derived.by(() => {
 		const { ahorroTotal, meta } = estadoGlobal;
 		if (meta <= 0) return null;
 
@@ -54,11 +51,7 @@
 				"¿Estás seguro de que quieres empezar de cero? Se perderá todo tu progreso.",
 			)
 		) {
-			estadoGlobal.nombre = "";
-			estadoGlobal.ahorroTotal = 0;
-			estadoGlobal.meta = 0;
-			estadoGlobal.historial = [];
-			estadoGlobal.pasoActual = "bienvenida";
+			Object.assign(estadoGlobal, crearEstadoInicial());
 		}
 	}
 </script>
@@ -97,7 +90,7 @@
 							<circle
 								cx="50"
 								cy="50"
-								r="45"
+								r={RADIO}
 								fill="none"
 								stroke="currentColor"
 								stroke-width="8"
@@ -107,20 +100,20 @@
 							<circle
 								cx="50"
 								cy="50"
-								r="45"
+								r={RADIO}
 								fill="none"
 								stroke="currentColor"
 								stroke-width="8"
 								stroke-linecap="round"
-								stroke-dasharray={2 * Math.PI * 45}
-								stroke-dashoffset={2 * Math.PI * 45 * (1 - progreso() / 100)}
+								stroke-dasharray={CIRCUNFERENCIA}
+								stroke-dashoffset={CIRCUNFERENCIA * (1 - progreso / 100)}
 								class="text-primary-content transition-all duration-1000 ease-out"
 							/>
 						</svg>
 						<div
 							class="absolute inset-0 flex flex-col items-center justify-center"
 						>
-							<span class="text-4xl font-bold">{Math.round(progreso())}%</span>
+							<span class="text-4xl font-bold">{Math.round(progreso)}%</span>
 							<span class="text-xs opacity-80">completado</span>
 						</div>
 					</div>
@@ -134,13 +127,13 @@
 							</p>
 						</div>
 
-						{#if mensajeMeta()}
+						{#if mensajeMeta}
 							<div
-								class="alert {mensajeMeta()?.tipo === 'pendiente'
+								class="alert {mensajeMeta.tipo === 'pendiente'
 									? 'alert-warning'
 									: 'alert-success'} bg-white/20 border-0 text-primary-content"
 							>
-								<span class="text-lg">{mensajeMeta()?.texto}</span>
+								<span class="text-lg">{mensajeMeta.texto}</span>
 							</div>
 						{:else}
 							<button
